@@ -39,7 +39,11 @@ def validate_config(config):
 
     if not (0 <= entry[0] < config["WIDTH"] and
             0 <= entry[1] < config["HEIGHT"]):
-        raise ValueError("Exit is outside the maze")
+        raise ValueError("ENTRY is outside the maze")
+
+    if not (0 <= exit_pos[0] < config["WIDTH"] and 
+            0 <= exit_pos[1] < config["HEIGHT"]):
+        raise ValueError("EXIT is outside the maze")
 
     if entry == exit_pos:
         raise ValueError("ENTRY and EXIT must be different")
