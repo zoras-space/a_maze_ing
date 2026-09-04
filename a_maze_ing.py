@@ -3,7 +3,7 @@ import sys
 from parser import parse_config
 
 
-def main():
+def main() -> None:
     if len(sys.argv) != 2:
         raise ValueError("Usage: python3 a_maze_ing.py config.txt")
 
