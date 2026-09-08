@@ -85,7 +85,7 @@ def validate_formatted_output(
         height: int
         ) -> None:
     if not content.endswith("\n"):
-        raise ValueError("Output must end witha newline")
+        raise ValueError("Output must end with a newline")
 
     sections = content.split("\n\n")
 
