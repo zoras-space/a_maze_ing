@@ -1,5 +1,7 @@
 """Generate a maze using cardinal wall flags and iterative backtracking."""
 
+import random
+
 NORTH = 1
 EAST = 2
 SOUTH = 4
@@ -85,7 +87,7 @@ class MazeGenerator:
             x: int,
             y: int,
         ) -> list[tuple[int, int, int]]:
-        """Return valid neighbouring cells and their direction."""
+        """Return unvisited neighbouring coordinates and their direction."""
         neighbours: list[tuple[int, int, int]] = []
 
         for direction, (dx, dy) in DIRECTIONS.items():
@@ -93,7 +95,34 @@ class MazeGenerator:
             ny = y + dy
 
             if self._is_inside_maze(nx, ny):
-                neighbours.append((nx, ny, direction))
+                if not self.maze[ny][nx].visited:
+                    neighbours.append((nx, ny, direction))
 
         return neighbours
 
+    def generate(self) -> None:
+        """Generate a perfect maze; non-perfect mode is not implemented yet."""
+        if not self.perfect:
+            raise NotImplementedError(
+                "Only perfect mazes are supported; set perfect=True."
+            )
+
+        # Reset both the grid and RNG so repeated seeded calls agree.
+        self.maze = self.create_grid()
+        rng = random.Random(self.seed)
+        # A fixed start makes wall layout independent of entry/exit markers.
+        self.maze[0][0].visited = True
+        stack = [(0, 0)]
+
+        while stack:
+            x, y = stack[-1]
+            neighbours = self._get_neighbours(x, y)
+            if not neighbours:
+                stack.pop()
+                continue
+
+            nx, ny, direction = rng.choice(neighbours)
+            self.maze[y][x].remove_wall(direction)
+            self.maze[ny][nx].remove_wall(OPPOSITE[direction])
+            self.maze[ny][nx].visited = True
+            stack.append((nx, ny))
