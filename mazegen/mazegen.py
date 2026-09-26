@@ -1,3 +1,5 @@
+"""Generate a maze using cardinal wall flags and iterative backtracking."""
+
 NORTH = 1
 EAST = 2
 SOUTH = 4
@@ -18,31 +20,31 @@ DIRECTIONS = {
     WEST: (-1, 0),
 }
 
+
 class Cell:
-    """representation of one Cell in the maze
-       Cell knows which walls it has,
-       can add/remove/check walls
-       holds temporary state    
-    """
+    """Store a cell's walls and temporary generation state."""
+
     def __init__(self) -> None:
+        """Start with all walls closed and the cell unvisited."""
         self.walls: int = ALL_WALLS
         self.visited: bool = False
 
     def has_wall(self, wall: int) -> bool:
-        """checks wall_state"""
+        """Return whether the specified wall exists."""
         return bool(self.walls & wall)
 
     def remove_wall(self, wall: int) -> None:
-        """removes wall"""
-        self.walls &= ~ wall 
+        """Remove the specified wall."""
+        self.walls &= ~wall
 
     def add_wall(self, wall: int) -> None:
-        """adds wall"""
+        """Add the specified wall."""
         self.walls |= wall
 
 
 class MazeGenerator:
-    """generate and provide access to the maze"""
+    """Generate a maze and expose its cells through maze[y][x]."""
+
     def __init__(
         self,
         width: int,
@@ -60,19 +62,16 @@ class MazeGenerator:
         self.seed = seed
         self.maze = self.create_grid()
 
-
     def create_grid(self) -> list[list[Cell]]:
-        """creates a grid where every cell starts out with all walls closed"""
+        """Create a grid where every cell starts with all walls closed."""
         return [
-        [Cell() for _ in range(self.width)]
-        for _ in range(self.height)
+            [Cell() for _ in range(self.width)]
+            for _ in range(self.height)
         ]
 
-
     def _is_inside_maze(self, x: int, y: int) -> bool:
-        """check if the coordinates are inside the maze"""
-        return 0 <= x < self.width and 0 <= y < self.height 
-
+        """Return whether the coordinates are inside the maze."""
+        return 0 <= x < self.width and 0 <= y < self.height
 
     def _get_neighbours(
             self,
