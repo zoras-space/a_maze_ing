@@ -54,12 +54,19 @@ class MazeGenerator:
         perfect: bool = False,
         seed: int | None = None
     ) -> None:
+        """Store settings and create a closed grid with valid endpoints."""
+        if width <= 0 or height <= 0:
+            raise ValueError("Maze width and height must be positive.")
         self.width = width
         self.height = height
         self.entry = entry
         self.exit_point = exit_point
         self.perfect = perfect
         self.seed = seed
+        if not self._is_inside_maze(*entry):
+            raise ValueError("Entry must be inside the maze.")
+        if not self._is_inside_maze(*exit_point):
+            raise ValueError("Exit must be inside the maze.")
         self.maze = self.create_grid()
 
     def create_grid(self) -> list[list[Cell]]:
