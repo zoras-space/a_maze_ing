@@ -1,3 +1,5 @@
+"""Handle the 42 Pattern inside the maze."""
+
 Pattern = (
     "#..#.####",
     "#..#....#",
@@ -13,16 +15,19 @@ def get_42_cells(
     entry: tuple[int, int],
     exit_point: tuple[int, int]
     ) -> set[tuple[int, int]]:
+    """Return the maze cells that form the 42 pattern."""
+
     pattern_height = len(Pattern)
     pattern_width = len(Pattern[0])
 
     if width < pattern_width or height < pattern_height:
-        raise ValueError("Maze is too small for the 42 pattern")
+        print("42 pattern ommited: maze is too small")
+        return set()
 
     start_x = (width - pattern_width) // 2
     start_y = (height - pattern_height) // 2
 
-    pattern_cells = set()
+    pattern_cells = set[tuple[int, int]] = set()
 
     for y, row in enumerate(Pattern):
         for x, cell in enumerate(row):
