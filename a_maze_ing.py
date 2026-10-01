@@ -13,8 +13,10 @@ def main() -> int:
     if len(sys.argv) != 2:
         print("Usage: python3 a_maze_ing.py config.txt", file=sys.stderr)
         return 1
+
     try:
         config = parse_config(sys.argv[1])
+
         generator = MazeGenerator(
             width=config["WIDTH"],
             height=config["HEIGHT"],
@@ -22,11 +24,9 @@ def main() -> int:
             exit_point=config["EXIT"],
             perfect=config["PERFECT"],
         )
+
         generator.generate()
-
         path = generator.shortest_path()
-
-        print(render_ascii(generator))
 
         generate_output(
             generator.maze,
@@ -35,6 +35,38 @@ def main() -> int:
             config["EXIT"],
             path,
         )
+
+        show_path = True
+
+        while True:
+            print("\033[H\033[J", end="")
+            print(render_ascii(generator, path, show_path))
+
+            print()
+            print("Commands: [r] Regenerate [p] Show/Hide path  [q] Quit")
+
+            command = input("> ").strip().lower()
+
+            if command == "p":
+                show_path = not show_path
+
+            elif command == "r":
+                generator.generate()
+                path = generator.shortest_path()
+
+                generate_output(
+                    generator.maze,
+                    config["OUTPUT_FILE"],
+                    config["ENTRY"],
+                    config["EXIT"],
+                    path,
+                )
+
+            elif command == "q":
+                break
+
+            else:
+                print("Unknown command.")
 
     except KeyError as error:
         # The current parser can access a required key before checking it.

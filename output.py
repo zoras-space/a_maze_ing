@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Protocol, Sequence
 
 
 class CellLike(Protocol):
@@ -14,7 +14,7 @@ def encode_cell(walls: int) -> str:
     return format(walls, "X")
 
 
-def encode_maze(maze: list[list[CellLike]]) -> list[str]:
+def encode_maze(maze: Sequence[Sequence[CellLike]]) -> list[str]:
     rows = []
 
     for row in maze:
@@ -143,7 +143,7 @@ def format_output(
 
 
 def generate_output(
-        maze: list[list[CellLike]],
+        maze: Sequence[Sequence[CellLike]],
         filename: str,
         entry: tuple[int, int],
         exit_pos: tuple[int, int],
