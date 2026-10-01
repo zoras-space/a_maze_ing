@@ -5,9 +5,9 @@
 ## Description
 
 A-Maze-ing is a 42 Berlin project for generating mazes in Python. Each cell
-stores its four cardinal walls. This first milestone generates perfect mazes:
-all cells are connected, with no loops and exactly one path between any two
-cells. The basic terminal ASCII display helps us inspect and test generation.
+stores its four cardinal walls. It generates perfect mazes with exactly one
+path between any two cells, or non-perfect mazes with additional loops.
+The basic terminal ASCII display helps us inspect and test generation.
 
 ## Current Status
 
@@ -18,14 +18,16 @@ Currently implemented:
 - Cell walls represented by bit flags.
 - Perfect maze generation using randomized depth-first search (DFS) with an
   explicit backtracking stack.
+- Non-perfect generation by opening internal walls at dead ends. Single-row
+  and single-column grids cannot contain loops.
 - Seeded generation through the Python constructor.
 - Matching shared walls, closed outside borders, and full connectivity.
 - Minimal ASCII rendering and automated generation/rendering tests.
-- Readable command-line errors for invalid configuration and unsupported mode.
+- Readable command-line errors for invalid configuration.
 
 Not implemented yet:
 
-- Non-perfect / Pac-Man mode and the 42 pattern.
+- Pac-Man-specific behavior and the 42 pattern.
 - Shortest-path calculation or display.
 - Required hexadecimal output-file generation.
 - Interactive controls, colour changes, and solution-path toggling.
@@ -212,9 +214,9 @@ Neither depends on terminal rendering. The ASCII renderer only reads the maze;
 the main program connects the parser, generator, and display.
 
 The generator can already be imported from this repository, as shown above.
-The final installable `mazegen-*` package has **not** been built. Callers must
-currently pass `perfect=True`; the preserved constructor default is `False`,
-which causes `generate()` to report that non-perfect mode is unsupported.
+The final installable `mazegen-*` package has **not** been built. Pass
+`perfect=True` for a perfect maze; the constructor default, `False`, generates
+a non-perfect maze.
 
 
 ## Development Progress
@@ -224,7 +226,7 @@ generates a first perfect maze, and displays it as ASCII. Tests verify seeded
 generation and coherent walls, full connectivity, no loops, closed borders,
 basic rendering, and invalid generator settings.
 
-Run the current four tests with:
+Run the current six tests with:
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -240,7 +242,7 @@ outstanding. Full lint/type-check compliance has not been verified.
 
 - Reserve/place the 42 pattern.
 - Add shortest-path solving and the required output-file format.
-- Implement non-perfect / Pac-Man mode.
+- Implement Pac-Man-specific behavior.
 - Add required terminal interactions and colour controls.
 - Expand automated validation, especially parser integration coverage.
 - Run flake8 and mypy and resolve any findings.
