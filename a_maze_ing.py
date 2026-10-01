@@ -37,20 +37,37 @@ def main() -> int:
         )
 
         show_path = True
+        wall_colours = ["white", "blue", "green", "red", "cyan"]
+        wall_colour_index = 0
 
         while True:
             print("\033[H\033[J", end="")
-            print(render_ascii(generator, path, show_path))
+            print(
+                render_ascii(
+                    generator,
+                    path,
+                    show_path,
+                    wall_colours[wall_colour_index],
+                )
+            )
 
             print()
-            print("Commands: [r] Regenerate [p] Show/Hide path  [q] Quit")
+            print("1. Re-generate maze")
+            print("2. Show/Hide shortest path")
+            print("3. Change wall colours")
+            print("4. Quit")
 
-            command = input("> ").strip().lower()
+            command = input("Choice (1-4): ").strip()
 
-            if command == "p":
+            if command == "2":
                 show_path = not show_path
 
-            elif command == "r":
+            elif command == "3":
+                wall_colour_index = (
+                    wall_colour_index + 1
+                ) % len(wall_colours)
+
+            elif command == "1":
                 generator.generate()
                 path = generator.shortest_path()
 
@@ -62,7 +79,7 @@ def main() -> int:
                     path,
                 )
 
-            elif command == "q":
+            elif command == "4":
                 break
 
             else:
