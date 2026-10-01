@@ -14,7 +14,7 @@ def get_42_cells(
     height: int,
     entry: tuple[int, int],
     exit_point: tuple[int, int]
-    ) -> set[tuple[int, int]]:
+) -> set[tuple[int, int]]:
     """Return the maze cells that form the 42 pattern."""
 
     pattern_height = len(Pattern)
@@ -27,7 +27,7 @@ def get_42_cells(
     start_x = (width - pattern_width) // 2
     start_y = (height - pattern_height) // 2
 
-    pattern_cells = set[tuple[int, int]] = set()
+    pattern_cells: set[tuple[int, int]] = set()
 
     for y, row in enumerate(Pattern):
         for x, cell in enumerate(row):

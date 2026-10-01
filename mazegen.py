@@ -2,6 +2,7 @@
 
 import random
 from pattern import get_42_cells
+from collections import deque
 
 NORTH = 1
 EAST = 2
@@ -27,8 +28,10 @@ DIRECTIONS = {
 class Cell:
     """Store a cell's walls and temporary generation state."""
 
-    def __init__(self) -> None:
+    def __init__(self, x: int, y: int) -> None:
         """Start with all walls closed and the cell unvisited."""
+        self.x = x
+        self.y = y
         self.walls: int = ALL_WALLS
         self.visited: bool = False
 
@@ -83,8 +86,8 @@ class MazeGenerator:
     def create_grid(self) -> list[list[Cell]]:
         """Create a grid where every cell starts with all walls closed."""
         return [
-            [Cell() for _ in range(self.width)]
-            for _ in range(self.height)
+            [Cell(x, y) for x in range(self.width)]
+            for y in range(self.height)
         ]
 
     def _is_inside_maze(self, x: int, y: int) -> bool:
@@ -136,3 +139,64 @@ class MazeGenerator:
             self.maze[ny][nx].remove_wall(OPPOSITE[direction])
             self.maze[ny][nx].visited = True
             stack.append((nx, ny))
+
+    def shortest_path(self) -> str:
+        """Return the shortest path from entry to exit."""
+        queue: deque[tuple[int, int]] = deque([self.entry])
+
+        previous: dict[
+                tuple[int, int],
+                tuple[tuple[int, int], str],
+        ] = {}
+
+        visited = {self.entry}
+
+        direction_names = {
+                NORTH: "N",
+                EAST: "E",
+                SOUTH: "S",
+                WEST: "W",
+        }
+
+        while queue:
+            x, y = queue.popleft()
+
+            if (x, y) == self.exit_point:
+                break
+
+            for wall, (dx, dy) in DIRECTIONS.items():
+                nx = x + dx
+                ny = y + dy
+                next_position = (nx, ny)
+
+                if not self._is_inside_maze(nx, ny):
+                    continue
+
+                if next_position in visited:
+                    continue
+
+                if self.maze[y][x].has_wall(wall):
+                    continue
+
+                visited.add(next_position)
+
+                previous[next_position] = (
+                    (x, y),
+                    direction_names[wall],
+                )
+
+                queue.append(next_position)
+
+        if self.exit_point not in visited:
+            raise ValueError("No path exists from entry to exit.")
+
+        path: list[str] = []
+        current = self.exit_point
+
+        while current != self.entry:
+            parent, move = previous[current]
+            path.append(move)
+            current = parent
+
+        path.reverse()
+        return "".join(path)
