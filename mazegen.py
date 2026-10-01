@@ -63,14 +63,17 @@ class MazeGenerator:
         """Store settings and create a closed grid with valid endpoints."""
         if width <= 0 or height <= 0:
             raise ValueError("Maze width and height must be positive.")
+
         self.width = width
         self.height = height
         self.entry = entry
         self.exit_point = exit_point
         self.perfect = perfect
         self.seed = seed
+
         if not self._is_inside_maze(*entry):
             raise ValueError("Entry must be inside the maze.")
+
         if not self._is_inside_maze(*exit_point):
             raise ValueError("Exit must be inside the maze.")
 
@@ -114,31 +117,90 @@ class MazeGenerator:
         return neighbours
 
     def generate(self) -> None:
-        """Generate a perfect maze; non-perfect mode is not implemented yet."""
-        if not self.perfect:
-            raise NotImplementedError(
-                "Only perfect mazes are supported; set perfect=True."
-            )
-
-        # Reset both the grid and RNG so repeated seeded calls agree.
+        """Generate either a perfect or non-perfect maze."""
         self.maze = self.create_grid()
         rng = random.Random(self.seed)
-        # A fixed start makes wall layout independent of entry/exit markers.
+
+        if self.perfect:
+            self._generate_perfect(rng)
+        else:
+            self._generate_non_perfect(rng)
+
+    def _generate_perfect(self, rng: random.Random) -> None:
+        """Generate a perfect maze using recursive backtracking."""
         self.maze[0][0].visited = True
         stack = [(0, 0)]
 
         while stack:
             x, y = stack[-1]
             neighbours = self._get_neighbours(x, y)
+
             if not neighbours:
                 stack.pop()
                 continue
 
             nx, ny, direction = rng.choice(neighbours)
+
             self.maze[y][x].remove_wall(direction)
             self.maze[ny][nx].remove_wall(OPPOSITE[direction])
+
             self.maze[ny][nx].visited = True
             stack.append((nx, ny))
+
+    def _find_dead_ends(self) -> list[tuple[int, int]]:
+        """Return cells that have exactly one open passage."""
+        dead_ends: list[tuple[int, int]] = []
+
+        for y in range(self.height):
+            for x in range(self.width):
+                if (x, y) in self.pattern_cells:
+                    continue
+
+                cell = self.maze[y][x]
+                open_walls = sum(
+                    not cell.has_wall(wall)
+                    for wall in DIRECTIONS
+                )
+
+                if open_walls == 1:
+                    dead_ends.append((x, y))
+
+        return dead_ends
+
+    def _generate_non_perfect(self, rng: random.Random) -> None:
+        """Create loops by opening internal walls at dead ends of a tree."""
+        self._generate_perfect(rng)
+
+        for x, y in self._find_dead_ends():
+            cell = self.maze[y][x]
+
+            open_walls = sum(
+                not cell.has_wall(wall)
+                for wall in DIRECTIONS
+            )
+
+            if open_walls != 1:
+                continue
+
+            neighbours: list[tuple[int, int, int]] = []
+
+            for direction, (dx, dy) in DIRECTIONS.items():
+                nx, ny = x + dx, y + dy
+
+                if not self._is_inside_maze(nx, ny):
+                    continue
+
+                if (nx, ny) in self.pattern_cells:
+                    continue
+
+                if cell.has_wall(direction):
+                    neighbours.append((nx, ny, direction))
+
+            if neighbours:
+                nx, ny, direction = rng.choice(neighbours)
+
+                cell.remove_wall(direction)
+                self.maze[ny][nx].remove_wall(OPPOSITE[direction])
 
     def shortest_path(self) -> str:
         """Return the shortest path from entry to exit."""
