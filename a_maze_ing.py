@@ -1,4 +1,4 @@
-"""Read configuration, generate a perfect maze, and print it as ASCII."""
+"""Read configuration, generate a maze, and print it as ASCII."""
 
 import sys
 
@@ -27,7 +27,7 @@ def main() -> int:
         # The current parser can access a required key before checking it.
         print(f"Error: Missing required key: {error.args[0]}", file=sys.stderr)
         return 1
-    except (OSError, UnicodeError, ValueError, NotImplementedError) as error:
+    except (OSError, UnicodeError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
     return 0
