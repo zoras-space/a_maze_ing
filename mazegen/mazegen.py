@@ -1,6 +1,9 @@
 """Generate a maze using cardinal wall flags and iterative backtracking."""
 
 import random
+from collections import deque
+
+from pattern import get_42_cells
 
 NORTH = 1
 EAST = 2
@@ -69,13 +72,21 @@ class MazeGenerator:
             raise ValueError("Entry must be inside the maze.")
         if not self._is_inside_maze(*exit_point):
             raise ValueError("Exit must be inside the maze.")
+        
+        self.pattern_cells = get_42_cells(
+                width,
+                height,
+                entry,
+                exit_point
+                )
+        
         self.maze = self.create_grid()
 
     def create_grid(self) -> list[list[Cell]]:
         """Create a grid where every cell starts with all walls closed."""
         return [
-            [Cell() for _ in range(self.width)]
-            for _ in range(self.height)
+            [Cell() for x in range(self.width)]
+            for y in range(self.height)
         ]
 
     def _is_inside_maze(self, x: int, y: int) -> bool:
@@ -95,8 +106,9 @@ class MazeGenerator:
             ny = y + dy
 
             if self._is_inside_maze(nx, ny):
-                if not self.maze[ny][nx].visited:
-                    neighbours.append((nx, ny, direction))
+                if (nx, ny) not in self.pattern_cells:
+                    if not self.maze[ny][nx].visited:
+                        neighbours.append((nx, ny, direction))
 
         return neighbours
 
@@ -128,39 +140,118 @@ class MazeGenerator:
             self.maze[ny][nx].visited = True
             stack.append((nx, ny))
 
-
     def _generate_non_perfect(self, rng: random.Random) -> None:
         """Create loops by opening internal walls at dead ends of a tree."""
         self._generate_perfect(rng)
 
         for x, y in self._find_dead_ends():
             cell = self.maze[y][x]
-            if sum(not cell.has_wall(wall) for wall in DIRECTIONS) != 1:
+
+            open_walls = sum(
+                not cell.has_wall(wall)
+                for wall in DIRECTIONS
+            )
+
+            if open_walls != 1:
                 continue
 
-            neighbours = []
+            neighbours: list[tuple[int, int, int]] = []
+
             for direction, (dx, dy) in DIRECTIONS.items():
                 nx, ny = x + dx, y + dy
-                if self._is_inside_maze(nx, ny) and cell.has_wall(direction):
+
+                if not self._is_inside_maze(nx, ny):
+                    continue
+
+                if (nx, ny) in self.pattern_cells:
+                    continue
+
+                if cell.has_wall(direction):
                     neighbours.append((nx, ny, direction))
 
             if neighbours:
                 nx, ny, direction = rng.choice(neighbours)
+
                 cell.remove_wall(direction)
                 self.maze[ny][nx].remove_wall(OPPOSITE[direction])
 
     def _find_dead_ends(self) -> list[tuple[int, int]]:
-        """Return coordinates of cells with exactly one open passage."""
+        """Return cells that have exactly one open passage."""
         dead_ends: list[tuple[int, int]] = []
 
-        for y, row in enumerate(self.maze):
-            for x, cell in enumerate(row):
-                open_sides = 0
+        for y in range(self.height):
+            for x in range(self.width):
+                if (x, y) in self.pattern_cells:
+                    continue
 
-                for direction in DIRECTIONS:
-                    if not cell.has_wall(direction):
-                        open_sides += 1
+                cell = self.maze[y][x]
+                open_walls = sum(
+                    not cell.has_wall(wall)
+                    for wall in DIRECTIONS
+                )
 
-                if open_sides == 1:
+                if open_walls == 1:
                     dead_ends.append((x, y))
+
         return dead_ends
+
+    def shortest_path(self) -> str:
+        """Return the shortest path from entry to exit."""
+        queue: deque[tuple[int, int]] = deque([self.entry])
+
+        previous: dict[
+                tuple[int, int],
+                tuple[tuple[int, int], str],
+        ] = {}
+
+        visited = {self.entry}
+
+        direction_names = {
+                NORTH: "N",
+                EAST: "E",
+                SOUTH: "S",
+                WEST: "W",
+        }
+
+        while queue:
+            x, y = queue.popleft()
+
+            if (x, y) == self.exit_point:
+                break
+
+            for wall, (dx, dy) in DIRECTIONS.items():
+                nx = x + dx
+                ny = y + dy
+                next_position = (nx, ny)
+
+                if not self._is_inside_maze(nx, ny):
+                    continue
+
+                if next_position in visited:
+                    continue
+
+                if self.maze[y][x].has_wall(wall):
+                    continue
+
+                visited.add(next_position)
+
+                previous[next_position] = (
+                    (x, y),
+                    direction_names[wall],
+                )
+
+                queue.append(next_position)
+
+        if self.exit_point not in visited:
+            raise ValueError("No path exists from entry to exit.")
+
+        path: list[str] = []
+        current = self.exit_point
+
+        while current != self.entry:
+            parent, move = previous[current]
+            path.append(move)
+            current = parent
+
+        path.reverse()
+        return "".join(path)
