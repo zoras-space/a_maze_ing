@@ -166,6 +166,9 @@ class MazeGenerator:
                 if (nx, ny) in self.pattern_cells:
                     continue
 
+                if self._creates_open_3x3(x, y, direction):
+                    continue
+
                 if cell.has_wall(direction):
                     neighbours.append((nx, ny, direction))
 
@@ -174,6 +177,37 @@ class MazeGenerator:
 
                 cell.remove_wall(direction)
                 self.maze[ny][nx].remove_wall(OPPOSITE[direction])
+
+    def _creates_open_3x3(
+        self,
+        x: int,
+        y: int,
+        direction: int,
+    ) -> bool:
+        """Check whether removing this wall would create an open 3x3 area."""
+        dx, dy = DIRECTIONS[direction]
+        nx, ny = x + dx, y + dy
+        if not (self._is_inside_maze(x, y)
+                and self._is_inside_maze(nx, ny)):
+            return False
+
+        # Inspect shared walls once, treating the proposed wall as open.
+        candidate = (min(x, nx), min(y, ny), EAST if dx else SOUTH)
+        for top in range(max(0, y - 2), min(y, self.height - 3) + 1):
+            for left in range(max(0, x - 2), min(x, self.width - 3) + 1):
+                if not (left <= nx < left + 3 and top <= ny < top + 3):
+                    continue
+                if all(
+                    (cx, cy, wall) == candidate
+                    or not self.maze[cy][cx].has_wall(wall)
+                    for wall, columns, rows in (
+                        (EAST, 2, 3), (SOUTH, 3, 2)
+                    )
+                    for cy in range(top, top + rows)
+                    for cx in range(left, left + columns)
+                ):
+                    return True
+        return False
 
     def _find_dead_ends(self) -> list[tuple[int, int]]:
         """Return cells that have exactly one open passage."""
