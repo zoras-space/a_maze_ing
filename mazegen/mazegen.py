@@ -1,7 +1,7 @@
 """Generate a maze using cardinal wall flags and iterative backtracking."""
 
 import random
-from pattern import get_42_cells
+from .pattern import get_42_cells
 from collections import deque
 
 NORTH = 1
