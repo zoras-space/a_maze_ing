@@ -42,6 +42,10 @@ def main() -> int:
 
         while True:
             print("\033[H\033[J", end="")
+
+            if not generator.pattern_cells:
+                print("42 pattern ommitted: maze too small")
+
             print(
                 render_ascii(
                     generator,
