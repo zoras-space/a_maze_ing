@@ -25,14 +25,14 @@ Currently implemented:
 - Minimal ASCII rendering and automated generation/rendering tests.
 - Readable command-line errors for invalid configuration.
 
-Not implemented yet:
+## Implemented Features:
 
-- Pac-Man-specific behavior and the 42 pattern.
-- Shortest-path calculation or display.
-- Required hexadecimal output-file generation.
-- Interactive controls, colour changes, and solution-path toggling.
-- Final graphical interface or MLX integration.
-- Installable `mazegen-*` distribution and build tooling.
+- Pac-Man-specific non-perfect maze generation and the 42 pattern.
+- Shortest-path calculation using Breadth First search (BFS).
+- Required hexadecimal maze outputand entry/exit/path information.
+- Interactive terminal controls for amze generation, shortest path visibility and wall-colours.
+- ASCII maze visualisation with entry,exit, solution path and 42 pattern.
+- Reusable `mazegen-*` Python Package with wheel and source distribution builds.
 
 Known limitations: the parser does not accept a seed. Its missing-key validation
 can raise `KeyError` before completing its checks; the main program catches this
@@ -207,15 +207,39 @@ maze grid. Outer borders stay closed. The renderer can show `EX` if both markers
 share a cell through the Python API, although the config parser rejects that
 case. There are no interactions, colours, or solution-path controls yet.
 
-## Reusable Code
+## Code Reusability
+
+The maze generator is provided as a reusable python package named `mazegen`.
+It can be installed from the generated wheel or the source distribution and
+imported into another Python project.
+
+### Creating a generator
+
+The `MazeGenerator` class can be imported and instantiated with custom maze
+dimensions, entry and exit positions, generation mode, and an optional seed.
+
+```python
+from mazegen import MazeGenerator
+
+generator = MazeGenerator(
+    width=10,
+    height=8,
+    entry=(0, 0),
+    exit_point=(9, 7),
+    perfect=True,
+    seed=42,
+)
+
+generator.generate()
+
+After calling generate(), the generated maze is available through generator.maze.
 
 `Cell` represents cell state, and `MazeGenerator` owns the generation logic.
 Neither depends on terminal rendering. The ASCII renderer only reads the maze;
 the main program connects the parser, generator, and display.
 
 The generator can already be imported from this repository, as shown above.
-The final installable `mazegen-*` package has **not** been built. Pass
-`perfect=True` for a perfect maze; the constructor default, `False`, generates
+. Pass `perfect=True` for a perfect maze; the constructor default, `False`, generates
 a non-perfect maze.
 
 
@@ -226,27 +250,6 @@ generates a first perfect maze, and displays it as ASCII. Tests verify seeded
 generation and coherent walls, full connectivity, no loops, closed borders,
 basic rendering, and invalid generator settings.
 
-Run the current six tests with:
-
-```bash
-python3 -m unittest discover -s tests -v
-```
-
-These tests passed during milestone verification, including a 40×40 maze.
-The application was exercised with both the supplied 20×15 configuration and a
-10×8 example. Python 3.10 syntax was checked; execution used Python 3.14.4.
-flake8 and mypy were unavailable in that environment, so their checks remain
-outstanding. Full lint/type-check compliance has not been verified.
-
-### Next steps (planned, not implemented)
-
-- Reserve/place the 42 pattern.
-- Add shortest-path solving and the required output-file format.
-- Implement Pac-Man-specific behavior.
-- Add required terminal interactions and colour controls.
-- Expand automated validation, especially parser integration coverage.
-- Run flake8 and mypy and resolve any findings.
-- Build the reusable package.
 
 ## Resources
 
