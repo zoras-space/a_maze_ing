@@ -4,7 +4,8 @@ import unittest
 
 from display.ascii_renderer import render_ascii
 from mazegen import MazeGenerator
-from mazegen.mazegen import DIRECTIONS, EAST, OPPOSITE, SOUTH
+from mazegen.pacman import _find_dead_ends
+from mazegen.cell import DIRECTIONS, EAST, OPPOSITE, SOUTH
 
 
 class MazeTests(unittest.TestCase):
@@ -144,7 +145,9 @@ class MazeTests(unittest.TestCase):
         """Count each dead end once and exclude cells with two passages."""
         maze = MazeGenerator(3, 1, (0, 0), (2, 0), True, 42)
         maze.generate()
-        self.assertEqual(maze._find_dead_ends(), [(0, 0), (2, 0)])
+        self.assertEqual(_find_dead_ends(
+            maze.maze, maze.width, maze.height, maze.pattern_cells
+        ), [(0, 0), (2, 0)])
 
 
 if __name__ == "__main__":
