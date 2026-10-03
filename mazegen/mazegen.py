@@ -2,7 +2,7 @@
 
 import random
 
-from pattern import get_42_cells
+from .pattern import get_42_cells
 
 from .cell import Cell, DIRECTIONS, OPPOSITE
 
