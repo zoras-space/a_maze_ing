@@ -1,7 +1,7 @@
 """Render the existing maze wall data as plain ASCII."""
 
 from mazegen import MazeGenerator
-from mazegen.mazegen import EAST, NORTH, SOUTH, WEST
+from mazegen.cell import EAST, NORTH, SOUTH, WEST
 
 
 YELLOW_BG = "\033[43m"
