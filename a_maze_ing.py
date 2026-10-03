@@ -23,6 +23,7 @@ def main() -> int:
             entry=config["ENTRY"],
             exit_point=config["EXIT"],
             perfect=config["PERFECT"],
+            seed=config.get("SEED")
         )
 
         generator.generate()

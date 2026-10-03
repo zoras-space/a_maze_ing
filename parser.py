@@ -3,6 +3,8 @@ from typing import TypedDict, Union, cast
 
 REQUIRED_KEYS = ["WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT"]
 
+OPTIONAL_KEYS = {"SEED"}
+
 
 class Config(TypedDict, total=False):
     WIDTH: int
@@ -11,11 +13,12 @@ class Config(TypedDict, total=False):
     EXIT: tuple[int, int]
     OUTPUT_FILE: str
     PERFECT: bool
+    SEED: int
 
 
 def convert_value(key: str,
                   value: str) -> Union[int, tuple[int, int], bool, str]:
-    if key in ("WIDTH", "HEIGHT"):
+    if key in ("WIDTH", "HEIGHT", "SEED"):
         try:
             return int(value)
         except ValueError:
@@ -82,7 +85,7 @@ def parse_config(filename: str) -> Config:
         if not key or not value:
             raise ValueError(f"Invalid configurartion line: {line}")
 
-        if key not in REQUIRED_KEYS:
+        if key not in REQUIRED_KEYS and key not in OPTIONAL_KEYS:
             raise ValueError(f"Unknown configuration key: {key}")
 
         config[key] = convert_value(key, value)
