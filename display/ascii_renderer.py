@@ -90,7 +90,7 @@ def render_ascii(
                     middle += RESET + "*".center(3)
 
             else:
-                middle += marker.center(3)
+                middle += RESET + marker.center(3)
 
             middle += (
                 colour + "|" + RESET
