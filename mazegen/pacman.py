@@ -6,6 +6,11 @@ from collections.abc import Callable
 from .cell import Cell, DIRECTIONS, EAST, SOUTH
 
 
+def _count_open_passages(cell: Cell) -> int:
+    """Return the number of open cardinal passages of a cell."""
+    return sum(not cell.has_wall(wall) for wall in DIRECTIONS)
+
+
 def _generate_non_perfect(
     maze: list[list[Cell]],
     width: int,
@@ -14,39 +19,128 @@ def _generate_non_perfect(
     rng: random.Random,
     open_passage: Callable[[Cell, Cell, int], None],
 ) -> None:
-    """Create loops by opening internal walls at dead ends of a tree."""
-    for x, y in _find_dead_ends(maze, width, height, pattern_cells):
-        cell = maze[y][x]
+    """Open required corridors, reduce dead ends, and ensure extra loops."""
+    openings = _open_required_corridors(
+        maze, width, height, pattern_cells, rng, open_passage
+    )
+    openings += _reduce_dead_ends(
+        maze, width, height, pattern_cells, rng, open_passage
+    )
+    _ensure_loops(
+        maze, width, height, pattern_cells, rng, open_passage, openings
+    )
 
-        open_walls = sum(
-            not cell.has_wall(wall)
-            for wall in DIRECTIONS
-        )
 
-        if open_walls != 1:
+def _open_safe_passage(
+    maze: list[list[Cell]],
+    width: int,
+    height: int,
+    pattern_cells: set[tuple[int, int]],
+    rng: random.Random,
+    open_passage: Callable[[Cell, Cell, int], None],
+    x: int,
+    y: int,
+) -> bool:
+    """Open one randomly selected safe closed wall, if one exists."""
+    if not (0 <= x < width and 0 <= y < height):
+        return False
+    if (x, y) in pattern_cells:
+        return False
+
+    cell = maze[y][x]
+    neighbours: list[tuple[int, int, int]] = []
+    for direction, (dx, dy) in DIRECTIONS.items():
+        nx, ny = x + dx, y + dy
+        if not (0 <= nx < width and 0 <= ny < height):
             continue
+        if (nx, ny) in pattern_cells:
+            continue
+        if not cell.has_wall(direction):
+            continue
+        if _creates_open_3x3(maze, width, height, x, y, direction):
+            continue
+        neighbours.append((nx, ny, direction))
 
-        neighbours: list[tuple[int, int, int]] = []
+    if not neighbours:
+        return False
+    nx, ny, direction = rng.choice(neighbours)
+    open_passage(cell, maze[ny][nx], direction)
+    return True
 
-        for direction, (dx, dy) in DIRECTIONS.items():
-            nx, ny = x + dx, y + dy
 
-            if not (0 <= nx < width and 0 <= ny < height):
+def _open_required_corridors(
+    maze: list[list[Cell]],
+    width: int,
+    height: int,
+    pattern_cells: set[tuple[int, int]],
+    rng: random.Random,
+    open_passage: Callable[[Cell, Cell, int], None],
+) -> int:
+    """Aim for two passages at each corner and the centre; count openings."""
+    openings = 0
+    required_cells = (
+        (0, 0), (width - 1, 0), (0, height - 1),
+        (width - 1, height - 1), (width // 2, height // 2),
+    )
+    for x, y in required_cells:
+        if (x, y) in pattern_cells:
+            continue
+        while _count_open_passages(maze[y][x]) < 2:
+            if not _open_safe_passage(
+                maze, width, height, pattern_cells, rng, open_passage, x, y
+            ):
+                break
+            openings += 1
+    return openings
+
+
+def _reduce_dead_ends(
+    maze: list[list[Cell]],
+    width: int,
+    height: int,
+    pattern_cells: set[tuple[int, int]],
+    rng: random.Random,
+    open_passage: Callable[[Cell, Cell, int], None],
+) -> int:
+    """Reduce dead ends to at most two when safe passages allow it."""
+    openings = 0
+    while True:
+        dead_ends = _find_dead_ends(maze, width, height, pattern_cells)
+        if len(dead_ends) <= 2:
+            return openings
+        changes = 0
+        for x, y in dead_ends:
+            if _count_open_passages(maze[y][x]) != 1:
                 continue
+            if _open_safe_passage(
+                maze, width, height, pattern_cells, rng, open_passage, x, y
+            ):
+                changes += 1
+        openings += changes
+        if not changes:
+            return openings
 
-            if (nx, ny) in pattern_cells:
-                continue
 
-            if _creates_open_3x3(maze, width, height, x, y, direction):
-                continue
-
-            if cell.has_wall(direction):
-                neighbours.append((nx, ny, direction))
-
-        if neighbours:
-            nx, ny, direction = rng.choice(neighbours)
-
-            open_passage(cell, maze[ny][nx], direction)
+def _ensure_loops(
+    maze: list[list[Cell]],
+    width: int,
+    height: int,
+    pattern_cells: set[tuple[int, int]],
+    rng: random.Random,
+    open_passage: Callable[[Cell, Cell, int], None],
+    openings: int,
+) -> None:
+    """Ensure two extra cycle-producing openings whenever safely possible."""
+    if openings >= 2:
+        return
+    for y in range(height):
+        for x in range(width):
+            if _open_safe_passage(
+                maze, width, height, pattern_cells, rng, open_passage, x, y
+            ):
+                openings += 1
+                if openings >= 2:
+                    return
 
 
 def _creates_open_3x3(
@@ -98,10 +192,7 @@ def _find_dead_ends(
                 continue
 
             cell = maze[y][x]
-            open_walls = sum(
-                not cell.has_wall(wall)
-                for wall in DIRECTIONS
-            )
+            open_walls = _count_open_passages(cell)
 
             if open_walls == 1:
                 dead_ends.append((x, y))
