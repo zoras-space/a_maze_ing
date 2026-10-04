@@ -4,266 +4,378 @@
 
 ## Description
 
-A-Maze-ing is a 42 Berlin project for generating mazes in Python. Each cell
-stores its four cardinal walls. It generates perfect mazes with exactly one
-path between any two cells, or non-perfect mazes with additional loops.
-The basic terminal ASCII display helps us inspect and test generation.
+A-Maze-ing generates perfect and Pac-Man-like non-perfect mazes in Python.
+It reads a configuration file, displays an interactive ASCII maze, finds a
+shortest path between entry and exit, and writes the maze using hexadecimal
+wall encoding. The reusable `mazegen` package works independently of the
+configuration parser, output writer, and terminal interface.
 
-## Current Status
+Features include seeded generation, coherent shared walls, closed outer
+borders, a centred `42` pattern, BFS pathfinding, and terminal controls for
+regeneration, solution visibility, and wall colours.
 
-Currently implemented:
+## Instructions
 
-- Configuration parsing and basic validation of required keys, values,
-  dimensions, and entry/exit positions.
-- Cell walls represented by bit flags.
-- Perfect maze generation using randomized depth-first search (DFS) with an
-  explicit backtracking stack.
-- Non-perfect generation by opening internal walls at dead ends. Single-row
-  and single-column grids cannot contain loops.
-- Seeded generation through the Python constructor.
-- Matching shared walls, closed outside borders, and full connectivity.
-- Minimal ASCII rendering and automated generation/rendering tests.
-- Readable command-line errors for invalid configuration.
+### Run the application
 
-Not implemented yet:
-
-- Pac-Man-specific behavior and the 42 pattern.
-- Shortest-path calculation or display.
-- Required hexadecimal output-file generation.
-- Interactive controls, colour changes, and solution-path toggling.
-- Final graphical interface or MLX integration.
-- Installable `mazegen-*` distribution and build tooling.
-
-Known limitations: the parser does not accept a seed. Its missing-key validation
-can raise `KeyError` before completing its checks; the main program catches this
-and reports the missing key. This is an initial milestone, not a finished subject
-submission.
-
-## Project Structure
-
-```text
-.
-├── .gitignore
-├── README.md
-├── a_maze_ing.py
-├── config.txt
-├── parser.py
-├── mazegen/
-│   ├── __init__.py
-│   └── mazegen.py
-├── display/
-│   ├── __init__.py
-│   └── ascii_renderer.py
-└── tests/
-    └── test_maze.py
-```
-
-Git metadata and generated Python caches are omitted.
-
-- `a_maze_ing.py`: connects configuration, generation, and display.
-- `parser.py`: the teammate's existing configuration parser and validation.
-- `config.txt`: supplied 20×15 perfect-maze configuration.
-- `mazegen/mazegen.py`: wall constants, `Cell`, and `MazeGenerator`.
-- `mazegen/__init__.py`: exposes `MazeGenerator` for imports.
-- `display/ascii_renderer.py`: reads cell walls and returns an ASCII string.
-- `tests/test_maze.py`: checks maze properties, seeds, rendering, and errors.
-
-## How to Run
-
-Use Python 3.10 or newer. No third-party runtime dependencies are required.
-From the repository root, run:
+Use Python 3.10 or later and a terminal supporting ANSI colours and cursor
+control. There are no third-party runtime dependencies. From the repository
+root:
 
 ```bash
 python3 a_maze_ing.py config.txt
 ```
 
-The maze is printed to the terminal. You can replace `config.txt` with another
-configuration filename. For a small example, save the configuration below as
-`small.txt`, then run:
+The program expects exactly one configuration filename. You can also use:
 
 ```bash
-python3 a_maze_ing.py small.txt
+make run
+make run CONFIG=your_config.txt
 ```
 
-## Configuration
-
-Use one `KEY=value` per line. All six keys below are required. Blank lines and
-whole-line comments beginning with `#` are ignored. Keys are uppercase; avoid
-spaces around `=`. Unknown keys are rejected. Inline comments are not supported.
-
-Example for a 10×8 maze:
+The maze and shortest path are generated, and `OUTPUT_FILE` is written before
+the menu appears:
 
 ```text
-WIDTH=10
-HEIGHT=8
-ENTRY=0,0
-EXIT=9,7
-OUTPUT_FILE=maze.txt
-PERFECT=True
+1. Re-generate maze
+2. Show/Hide shortest path
+3. Change wall colours
+4. Quit
 ```
 
-| Key | Currently accepted meaning |
-| --- | --- |
-| `WIDTH` | Positive integer: number of columns. |
-| `HEIGHT` | Positive integer: number of rows. |
-| `ENTRY` | Entry cell as `x,y`, inside the maze. |
-| `EXIT` | Exit cell as `x,y`, inside the maze and different from entry. |
-| `OUTPUT_FILE` | Required nonempty value; currently unused and no file is written. |
-| `PERFECT` | Parser accepts `True` or `False`, ignoring case; generation currently requires `True`. |
+Enter a number and press Enter. Regeneration recalculates the path and rewrites
+the output file. With a fixed `SEED`, regeneration reproduces the same maze;
+omit the seed for fresh random choices.
 
-Coordinates start at `(0, 0)` in the top-left corner. Increasing `x` moves right;
-increasing `y` moves down. Entry and exit are cells, not openings in the outer
-border. `SEED` is not an accepted configuration key.
+The display uses `E` for entry, `X` for exit, `*` for the visible solution,
+and a yellow background for the pattern cells. Wall colours cycle through
+white, blue, green, red, and cyan. Entry and exit identify cells; they do not
+open the outer border.
 
-## Maze Representation
+### Install and use the reusable package
 
-Each `Cell` stores its walls in one integer, `walls`. A set bit means that wall
-exists:
+The package sources live in `mazegen/`, with build metadata in
+`pyproject.toml`. This checkout contains no prebuilt wheel or source archive.
+Create a virtual environment and install directly from the repository root:
 
-| Wall | Value | Bit |
-| --- | --- | --- |
-| `NORTH` | 1 | 0 |
-| `EAST` | 2 | 1 |
-| `SOUTH` | 4 | 2 |
-| `WEST` | 8 | 3 |
-
-Every cell starts with `ALL_WALLS = 15`, combining all four flags. `has_wall()`
-checks a wall, `remove_wall()` clears its bit, and `add_wall()` sets it.
-This ordering intentionally matches the subject's later hexadecimal wall
-encoding: one cell's integer can become one hex digit. Export is not implemented.
-
-The grid is accessed as `generator.maze[y][x]`. Each cell also has a `visited`
-flag used during generation.
-
-## Maze Generation Algorithm
-
-The implementation uses randomized DFS / recursive backtracking, written
-iteratively with a Python list as a stack rather than recursive function calls.
-
-1. Reset the grid so every cell has all four walls.
-2. Start at `(0, 0)`, mark it visited, and put it on the stack.
-3. Find its unvisited north/east/south/west neighbours inside the grid.
-4. Randomly choose one and remove both sides of the shared wall.
-5. Mark that neighbour visited, push it onto the stack, and continue from it.
-6. At a dead end, pop the stack to backtrack.
-7. Finish when the stack is empty; every cell has been visited.
-
-In `MazeGenerator.generate()`, the paired removal is:
-
-```python
-self.maze[y][x].remove_wall(direction)
-self.maze[ny][nx].remove_wall(OPPOSITE[direction])
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install .
 ```
 
-For example, moving east removes the current cell's east wall and the next
-cell's west wall. Only connecting to unvisited cells prevents loops.
+On Windows, activate with `.venv\Scripts\activate`. The current package metadata
+requires Python `>3.10`, which excludes Python 3.10.0 itself.
 
-We chose this algorithm because it is simple to explain, fits the cell/grid
-representation, and produces a perfect maze. Random neighbour selection gives
-variation, while a seed makes the choices repeatable. The explicit stack avoids
-Python's recursion-depth limit.
-
-## Seed / Reproducibility
-
-Supply a seed directly to `MazeGenerator` in Python. From the repository root,
-this example can be run in a Python interpreter or saved as a script:
+The installed package exposes `MazeGenerator` for direct use as a reusable
+Python module. Import it, pass custom parameters, and call `generate()`:
 
 ```python
 from mazegen import MazeGenerator
-from display.ascii_renderer import render_ascii
 
 generator = MazeGenerator(
-    width=10,
-    height=8,
+    width=20,
+    height=15,
     entry=(0, 0),
-    exit_point=(9, 7),
+    exit_point=(19, 14),
     perfect=True,
     seed=42,
 )
 generator.generate()
-print(render_ascii(generator))
+
+maze = generator.maze
+solution = generator.shortest_path()
+print(solution)
 ```
 
-Each call to `generate()` resets the grid and creates a local
-`random.Random(self.seed)`. With the same implementation and Python environment,
-the same dimensions and seed produce the same walls, including on repeated
-calls. A different seed may produce a different maze. Entry/exit markers do not
-affect generation because the starting cell is fixed.
+`width` and `height` define the maze size in cells. `entry` and `exit_point`
+are `(x, y)` coordinates. `perfect=True` generates a perfect maze; `False`
+selects non-perfect generation. `seed` allows reproducible generation.
 
-The command-line program currently leaves the seed as `None`, so its runs are
-not reproducible by configuration alone. There is no seed command-line option.
+`generator.maze` exposes the generated 2D cell structure as `maze[y][x]`.
+Each element is a `Cell` whose `walls` integer stores the four wall flags.
+`generator.shortest_path()` returns a shortest valid route from entry to exit
+using the letters `N`, `E`, `S`, and `W`, or raises `ValueError` if the exit
+cannot be reached. Call `generate()` before solving.
+The constructor defaults to `perfect=False` and `seed=None`.
 
-## ASCII Display
+To create distributable files from the current sources:
 
-The renderer is a minimal development/testing visualization:
+```bash
+python3 -m pip install build
+python3 -m build
+```
 
-- `E`: entry cell.
-- `X`: exit cell.
-- `---`: horizontal wall; `|`: vertical wall; `+`: wall corner.
-- Spaces between cells: open passages.
+This produces a wheel and source archive in `dist/`. With the current version,
+the wheel can be installed with:
 
-It reads the generated cells without changing their walls or keeping a second
-maze grid. Outer borders stay closed. The renderer can show `EX` if both markers
-share a cell through the Python API, although the config parser rejects that
-case. There are no interactions, colours, or solution-path controls yet.
+```bash
+python3 -m pip install dist/mazegen-1.0.0-py3-none-any.whl
+```
 
-## Reusable Code
+Use the filename generated by your build if the version changes. The package
+contains the generator, cells, pattern, Pac-Man transformations, and solver;
+the CLI, parser, renderer, and output writer remain repository tools.
+To verify an installed package rather than the local source directory, run
+this from outside the repository while the virtual environment is active:
 
-`Cell` represents cell state, and `MazeGenerator` owns the generation logic.
-Neither depends on terminal rendering. The ASCII renderer only reads the maze;
-the main program connects the parser, generator, and display.
+```bash
+python3 -c "from mazegen import MazeGenerator; print(MazeGenerator)"
+```
 
-The generator can already be imported from this repository, as shown above.
-The final installable `mazegen-*` package has **not** been built. Pass
-`perfect=True` for a perfect maze; the constructor default, `False`, generates
-a non-perfect maze.
+Leave the virtual environment with `deactivate`. See [LICENSE.md](LICENSE.md)
+for the MIT License covering reuse, modification, and distribution.
 
+## Configuration
 
-## Development Progress
+Use one `KEY=VALUE` pair per line. Blank lines and whole-line comments starting
+with `#` are ignored. Keys are uppercase; do not put spaces around `=`.
+Unknown keys are rejected, and inline comments are not supported.
 
-Milestone 1 establishes the maze representation, integrates the existing parser,
-generates a first perfect maze, and displays it as ASCII. Tests verify seeded
-generation and coherent walls, full connectivity, no loops, closed borders,
-basic rendering, and invalid generator settings.
+| Key | Required | Meaning |
+| --- | --- | --- |
+| `WIDTH` | Yes | Positive integer number of columns. |
+| `HEIGHT` | Yes | Positive integer number of rows. |
+| `ENTRY` | Yes | Entry coordinates as `x,y`, inside the maze. |
+| `EXIT` | Yes | Exit coordinates as `x,y`, inside the maze and different from entry. |
+| `OUTPUT_FILE` | Yes | Nonempty path to the output file; existing contents are overwritten. |
+| `PERFECT` | Yes | `True` for a perfect maze, `False` for Pac-Man-like generation; case-insensitive. |
+| `SEED` | No | Integer seed for reproducible generation. |
 
-Run the current six tests with:
+```text
+# A-maze-ing configuration
+WIDTH=20
+HEIGHT=15
+ENTRY=0,0
+EXIT=19,14
+OUTPUT_FILE=maze.txt
+PERFECT=False
+SEED=42
+```
+
+Coordinates start at `(0, 0)` in the top-left corner: `x` increases rightwards
+and `y` downwards. Entry and exit must not overlap the `42` pattern. Relative
+file paths are resolved from the working directory; the output directory must
+already exist.
+
+Each generation resets the grid and creates a local `random.Random(seed)`.
+The same dimensions, endpoints, mode, seed, implementation, and Python
+environment reproduce the same maze. Endpoints matter because they are
+checked against the pattern placement.
+
+## Maze Representation and Algorithms
+
+### Cells and walls
+
+Each `Cell` represents walls as bits in one integer. A set bit means the wall
+is closed:
+
+| Wall | Value | Bit |
+| --- | --- | --- |
+| North | 1 | 0 |
+| East | 2 | 1 |
+| South | 4 | 2 |
+| West | 8 | 3 |
+
+A new cell has `ALL_WALLS = 15`. `has_wall()` checks a bit, `remove_wall()`
+clears it, and `add_wall()` sets it. `MazeGenerator.open_passage()` removes
+both sides of a shared wall using `OPPOSITE`. The temporary `visited` flag
+supports generation; pattern cells remain unvisited and fully closed.
+
+### Perfect generation
+
+Randomized depth-first search uses an explicit stack for iterative backtracking:
+
+1. Reset the grid and start at `(0, 0)`.
+2. Find unvisited neighbours inside the grid, excluding pattern cells.
+3. Choose a neighbour with the local RNG and open the shared wall.
+4. Mark it visited and push it onto the stack.
+5. When no unvisited neighbour remains, pop the stack and backtrack.
+
+Connecting only to unvisited cells creates a tree over the reachable passage
+cells, with one path between any two cells in that tree. Pattern cells are
+obstacles and are excluded from the passage-cell count.
+
+We chose DFS because it maps naturally to cells and walls, is easy to trace,
+and produces a perfect maze without loops. The explicit stack avoids Python's
+recursion-depth limit, while a seed makes random choices repeatable.
+
+### Pac-Man-like generation
+
+With `PERFECT=False`, the same DFS maze is created first. The transformation
+then:
+
+1. Aims for at least two passages at each corner and at
+   `(width // 2, height // 2)`, skipping pattern cells.
+2. Recalculates dead ends and opens safe passages until at most two remain,
+   or a complete pass makes no progress.
+3. Adds safe passages if fewer than two extra openings have been made.
+
+Every new passage in the connected DFS tree introduces a cycle. A shared
+helper selects a currently closed internal wall using the RNG and calls
+`open_passage()`. It never opens into pattern cells or outside the grid and
+rejects any opening that would make all internal walls of a `3x3` block open.
+
+Corridor, dead-end, and two-cycle targets are best effort when geometry or
+these safeguards block further changes. A `1x1`, single-row, or single-column
+maze cannot contain cycles; a `2x2` grid can contain only one. Even-sized
+mazes use the single centre coordinate above, not a special `2x2` centre.
+
+### The 42 pattern
+
+The fixed pattern occupies a `9x5` bounding box, centred using integer offsets.
+Its marked cells stay fully closed and are displayed with a yellow background.
+If the grid is smaller than nine columns or five rows, the pattern is omitted
+and a message is printed. Entry or exit overlap raises `ValueError`.
+
+On very tight grids, the pattern can separate passage regions. DFS visits
+only the region reachable from `(0, 0)`; the solver raises `ValueError` if
+entry and exit are disconnected. Use a larger grid, such as the supplied
+`20x15` configuration, to leave room around the pattern.
+
+### Shortest path
+
+Breadth-first search explores open passages level by level with a `deque`
+queue. It records predecessors and reconstructs the shortest path backwards
+from exit to entry. The result is a direction string such as `EESSWN`.
+
+## Output File
+
+Each cell is written as one uppercase hexadecimal digit representing its wall
+bits: `3` means north and east walls, `A` means east and west walls, and `F`
+means all four walls. Rows contain exactly `WIDTH` digits, with `HEIGHT` rows.
+
+A blank line separates the grid from three lines containing the entry,
+exit, and shortest path. Coordinates are written with a comma and space:
+
+```text
+<hexadecimal maze rows>
+
+0, 0
+19, 14
+<N/E/S/W path string>
+```
+
+The file ends with a newline and is overwritten after every regeneration.
+
+## Structure and Architecture
+
+```text
+.
+├── a_maze_ing.py              # CLI, menu, and component integration
+├── parser.py                  # Configuration parsing and validation
+├── output.py                  # Hexadecimal encoding and output writing
+├── config.txt                 # Default 20x15 configuration
+├── Makefile                   # Project commands
+├── pyproject.toml             # Reusable package build metadata
+├── LICENSE.md
+├── README.md
+├── mazegen/
+│   ├── __init__.py            # Public MazeGenerator export
+│   ├── cell.py                # Cell, wall flags, and direction mappings
+│   ├── mazegen.py             # Generation flow, DFS, and open_passage()
+│   ├── pacman.py              # Safe openings, corridors, dead ends, loops
+│   ├── pattern.py             # 42 pattern placement
+│   └── solver.py              # BFS shortest-path implementation
+├── display/
+│   ├── __init__.py
+│   └── ascii_renderer.py      # Drawing, path markers, and wall colours
+└── tests/
+    └── test_maze.py
+```
+
+The CLI coordinates the components: parse configuration, construct and run
+`MazeGenerator`, request the shortest path, write output, and render the maze.
+The menu belongs to the CLI; the renderer returns a string without changing
+the maze. The solver uses the same cell grid rather than a separate maze model.
+
+`cell.py` owns the low-level wall representation and has no dependency on the
+generator. `MazeGenerator` remains the public interface and delegates solving
+and non-perfect transformations. Pac-Man helpers receive the grid, dimensions,
+pattern coordinates, RNG, and a bound `open_passage` callback instead of
+requiring their own generator class. Packaging includes the modules under
+`mazegen/` through the `mazegen*` discovery rule.
+
+This separation made responsibilities clearer while preserving one shared
+wall representation across generation, solving, rendering, and export.
+Keeping the parser and terminal interface outside the package makes the core
+usable in other Python applications.
+
+## Development Commands
+
+Run the automated tests from the repository root:
 
 ```bash
 python3 -m unittest discover -s tests -v
 ```
 
-These tests passed during milestone verification, including a 40×40 maze.
-The application was exercised with both the supplied 20×15 configuration and a
-10×8 example. Python 3.10 syntax was checked; execution used Python 3.14.4.
-flake8 and mypy were unavailable in that environment, so their checks remain
-outstanding. Full lint/type-check compliance has not been verified.
+The suite checks perfect-maze trees, connectivity of non-pattern cells,
+coherent walls, borders, seeded generation, rendering, invalid settings,
+Pac-Man corridors and loops, dead-end reduction, tiny-grid limits, and the
+open-`3x3` safeguard.
 
-### Next steps (planned, not implemented)
+For development tooling:
 
-- Reserve/place the 42 pattern.
-- Add shortest-path solving and the required output-file format.
-- Implement Pac-Man-specific behavior.
-- Add required terminal interactions and colour controls.
-- Expand automated validation, especially parser integration coverage.
-- Run flake8 and mypy and resolve any findings.
-- Build the reusable package.
+```bash
+python3 -m pip install flake8 mypy
+make lint
+make lint_strict
+make debug
+```
+
+`make lint` runs flake8 and mypy with the flags defined in the Makefile;
+`make lint_strict` uses mypy's strict mode. `make debug` starts the CLI under
+`pdb`. The current `make install` expects a `requirements.txt` that is not
+present; use the package and tooling installation commands above instead.
+The current `make clean` recipe also needs correction before use.
+
+## Team and Project Management
+
+### Roles
+
+**zodzykon:** maze-generator architecture, cells and walls, perfect and
+non-perfect generation, initial ASCII display, documentation, license, and
+Makefile.
+
+**ntsvuura:** configuration parsing, the `42` pattern, hexadecimal output,
+package setup, shortest-path solving, and further ASCII display development,
+including solution markers, colours, and interactive controls.
+
+### Planning and learnings
+
+The initial split between generation and parsing allowed independent work.
+As the project grew, generation was separated into representation, perfect
+and non-perfect algorithms; parsing work expanded into output, pattern,
+solving, and packaging. The main program connects those responsibilities.
+
+Clear module boundaries and one cell representation made individual features
+easier to test and reuse. Integration revealed assumptions between components,
+such as whether pattern cells belong in connectivity counts and where package
+dependencies should live. Moving the pattern inside `mazegen` made the reusable
+package self-contained; moving wall definitions into `cell.py` established a
+clearer dependency direction.
+
+Earlier, smaller integrations and agreed interfaces would have reduced late
+integration work. For future projects, we would define component interfaces
+sooner and maintain end-to-end checks alongside individual module tests.
+
+Tools include Git, Python `unittest`, flake8 and mypy commands, Python packaging
+with `pyproject.toml`, and ANSI terminal escape sequences. Having lint commands
+configured does not imply the current sources have passed them.
 
 ## Resources
 
-References consulted while preparing this documentation; these do not imply
-that every team member has already studied them:
-
-- [Python tutorial](https://docs.python.org/3/tutorial/): Python fundamentals,
-  classes, modules, and data structures.
-- [Python random documentation](https://docs.python.org/3/library/random.html):
-  local `Random` instances, seeds, and random selection.
-- [Jamis Buck: Maze Generation — Recursive Backtracking](https://weblog.jamisbuck.org/2010/12/27/maze-generation-recursive-backtracking):
-  an explanation and implementation of the backtracking algorithm. Its example
-  tracks passages with bits; this project uses set bits for walls instead.
+- [Python documentation](https://docs.python.org/3/): classes, modules, and data structures.
+- [Python random documentation](https://docs.python.org/3/library/random.html): local RNG instances and seeds.
+- [Python collections documentation](https://docs.python.org/3/library/collections.html#collections.deque): the queue used by BFS.
+- [Python Packaging User Guide](https://packaging.python.org/): building and distributing packages.
+- [Jamis Buck: Maze Generation — Recursive Backtracking](https://weblog.jamisbuck.org/2010/12/27/maze-generation-recursive-backtracking): the backtracking algorithm; this project uses set bits for walls rather than passages.
 
 ### AI Usage
 
-AI tools assisted with discussing project architecture, breaking the subject
-into smaller implementation steps, implementing the first perfect-maze
-algorithm, creating basic ASCII visualization, tests, and structuring this
-documentation.
+AI tools assisted with breaking requirements into implementation steps,
+discussing architecture and algorithms, explaining Python concepts,
+refactoring module responsibilities, suggesting tests and edge cases,
+reviewing integration changes, and preparing documentation and targeted
+review prompts. Suggestions were checked against the code and requirements;
+the team remains responsible for understanding and maintaining the result.
